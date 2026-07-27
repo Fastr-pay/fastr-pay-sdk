@@ -49,4 +49,24 @@ async function testBalance() {
     console.log('Balance result:', result)
 }
 
-testBalance().catch(console.error)
+async function testWithdraw() {
+    const result = await fastr.withdraw({
+        receiverId: 're_3Wq8t3k8Vo9t',
+        bankAccountId: 'ba_QCbu48wzSEtm',
+        amount: 1000, // 1000 = $10
+        senderWalletAddress: '0xeca0dd4d9fbaba0f54ce4142965724643d05e262',
+    })
+    console.log('Withdraw result:', result)
+}
+
+async function testCallPaidEndpoint() {
+    const result = await fastr.callPaidEndpoint('http://localhost:3000/api/market-data', {
+        recipientAddress: '0x34Ce9F30Af643445c4b5499F184809cEdF9A273f',
+        amount: 1000,
+        purpose: 'market data access',
+        senderAddress: '0x34Ce9F30Af643445c4b5499F184809cEdF9A273f',
+    })
+    console.log('Paid endpoint result:', result)
+}
+
+testCallPaidEndpoint().catch(console.error)

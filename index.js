@@ -43,8 +43,32 @@ class FastrPay {
         })
     }
 
+    async withdraw({ receiverId, bankAccountId, amount, senderWalletAddress }) {
+        return this._request('/withdraw', 'POST', {
+            receiverId, bankAccountId, amount, senderWalletAddress,
+        })
+    }
+
     async createWallet({ ownerLabel }) {
         return this._request('/wallet/create', 'POST', { ownerLabel })
+    }
+
+    async payForAccess({ recipientAddress, amount, purpose }) {
+        return this._request('/agent-pay', 'POST', {
+            recipientAddress, amount, purpose
+        })
+    }
+
+    async callPaidEndpoint(url, { recipientAddress, amount, purpose, senderAddress }) {
+        const payment = await this.payForAccess({ recipientAddress, amount, purpose })
+        const res = await fetch(url, {
+            headers: {
+                'x-api-key': this.apiKey,
+                'X-Payment-Id': payment.paymentId,
+                'X-Payer-Address': senderAddress,
+            },
+        })
+        return res.json()
     }
 }
 
