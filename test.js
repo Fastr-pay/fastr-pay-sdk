@@ -64,7 +64,7 @@ async function testCallPaidEndpoint() {
         recipientAddress: '0x34Ce9F30Af643445c4b5499F184809cEdF9A273f',
         amount: 1000,
         purpose: 'market data access',
-        senderAddress: '0x34Ce9F30Af643445c4b5499F184809cEdF9A273f',
+        senderAddress: '0xe23C9960A9B106f1C48C84D44f16b8bEAf3bD2c6',
     })
     console.log('Paid endpoint result:', result)
 }

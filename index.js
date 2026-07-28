@@ -68,7 +68,17 @@ class FastrPay {
                 'X-Payer-Address': senderAddress,
             },
         })
-        return res.json()
+        const result = await res.json()
+
+        return {
+            ...result,
+            paymentReceipt: {
+                paymentId: payment.paymentId,
+                txHash: payment.txHash,
+                amountPaid: amount,
+                purpose,
+            },
+        }
     }
 }
 
