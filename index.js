@@ -80,6 +80,10 @@ class FastrPay {
             },
         }
     }
+
+    async runPayroll(payrollList, companyWalletAddress) {
+        return this._request('/payroll/run', 'POST', { payrollList, companyWalletAddress })
+    }
 }
 
 module.exports = FastrPay

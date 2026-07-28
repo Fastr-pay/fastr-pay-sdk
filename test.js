@@ -12,7 +12,7 @@ async function run() {
 
 async function testPay() {
     const result = await fastr.pay({
-        payeeWalletAddress: '0x5b2d61c40dA8ca460CF158df62b4b25e7DE70867',
+        payeeWalletAddress: '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4',
         fiatAmount: 100,
         fiatCurrency: 'INR',
         purpose: 'sdk pay test',
@@ -26,7 +26,7 @@ async function testPay() {
 
 async function testCreatePaymentLink() {
     const link = await fastr.createPaymentLink({
-        payeeWalletAddress: '0x5b2d61c40dA8ca460CF158df62b4b25e7DE70867',
+        payeeWalletAddress: '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4',
         amount: 2,
         currency: 'EUR',
         purpose: 'sdk payroll test',
@@ -45,7 +45,7 @@ async function testFulfillPaymentLink(linkId, signature) {
 }
 
 async function testBalance() {
-    const result = await fastr.getBalance('0x5b2d61c40dA8ca460CF158df62b4b25e7DE70867')
+    const result = await fastr.getBalance('0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
     console.log('Balance result:', result)
 }
 
@@ -69,4 +69,16 @@ async function testCallPaidEndpoint() {
     console.log('Paid endpoint result:', result)
 }
 
-testCallPaidEndpoint().catch(console.error)
+async function testPayroll() {
+    const result = await fastr.runPayroll([
+        {
+            name: 'Dante',
+            blindPayReceiverId: 're_3Wq8t3k8Vo9t',
+            bankAccountId: 'ba_QCbu48wzSEtm',
+            salary: 12000000
+        },
+    ], '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
+    console.log('Payroll result:', result)
+}
+
+testPayroll().catch(console.error)
