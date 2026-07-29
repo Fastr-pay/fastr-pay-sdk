@@ -75,7 +75,7 @@ async function testPayroll() {
             name: 'Dante',
             blindPayReceiverId: 're_3Wq8t3k8Vo9t',
             bankAccountId: 'ba_QCbu48wzSEtm',
-            salary: 12000000 // 12000000 = USDC - $12 
+            salary: 12,
         },
     ], '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
     console.log('Payroll result:', result)

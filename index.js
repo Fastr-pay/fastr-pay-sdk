@@ -82,7 +82,11 @@ class FastrPay {
     }
 
     async runPayroll(payrollList, companyWalletAddress) {
-        return this._request('/payroll/run', 'POST', { payrollList, companyWalletAddress })
+        const convertedList = payrollList.map(w => ({
+            ...w,
+            salary: Math.round(w.salary * 1_000_000),
+        }))
+        return this._request('/payroll/run', 'POST', { payrollList: convertedList, companyWalletAddress })
     }
 }
 
