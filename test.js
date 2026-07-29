@@ -79,6 +79,9 @@ async function testPayroll() {
         },
     ], '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
     console.log('Payroll result:', result)
+
+    const balance = await fastr.getBalance('0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
+    console.log('Balances after payroll:', balance.balances)
 }
 
 testPayroll().catch(console.error)
