@@ -53,6 +53,10 @@ class FastrPay {
         return this._request('/wallet/create', 'POST', { ownerLabel })
     }
 
+    async getWallets() {
+        return this._request('/wallets', 'GET')
+    }
+
     async payForAccess({ recipientAddress, amount, purpose }) {
         return this._request('/agent-pay', 'POST', {
             recipientAddress, amount, purpose
@@ -87,6 +91,15 @@ class FastrPay {
             salary: Math.round(w.salary * 1_000_000),
         }))
         return this._request('/payroll/run', 'POST', { payrollList: convertedList, companyWalletAddress })
+    }
+
+    async setAgentPolicy({ businessWalletAddress, agentAddress, maxAmountPerTx, dailyLimit }) {
+        return this._request('/agent/policy', 'POST', {
+            businessWalletAddress,
+            agentAddress,
+            maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
+            dailyLimit: Math.round(dailyLimit * 1_000_000),
+        })
     }
 }
 
