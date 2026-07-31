@@ -59,7 +59,10 @@ class FastrPay {
 
     async payForAccess({ recipientAddress, amount, purpose, agentAddress }) {
         return this._request('/agent-pay', 'POST', {
-            recipientAddress, amount, purpose, agentAddress,
+            recipientAddress,
+            amount: Math.round(amount * 1_000_000),
+            purpose,
+            agentAddress,
         })
     }
 
