@@ -43,9 +43,11 @@ class FastrPay {
         })
     }
 
-    async withdraw({ receiverId, bankAccountId, amount, senderWalletAddress }) {
+    async withdraw({ receiverId, bankAccountId, amount }) {
         return this._request('/withdraw', 'POST', {
-            receiverId, bankAccountId, amount, senderWalletAddress,
+            receiverId,
+            bankAccountId,
+            amount,
         })
     }
 
@@ -57,33 +59,29 @@ class FastrPay {
         return this._request('/wallets', 'GET')
     }
 
-    async payForAccess({ recipientAddress, amount, purpose, agentAddress }) {
+    async payForAccess({ recipientAddress, amount, purpose }) {
         return this._request('/agent-pay', 'POST', {
             recipientAddress,
             amount: Math.round(amount * 1_000_000),
             purpose,
-            agentAddress,
         })
     }
 
-    async runPayroll(payrollList, companyWalletAddress, agentAddress) {
+    async runPayroll(payrollList) {
         const convertedList = payrollList.map(w => ({
             ...w,
             salary: Math.round(w.salary * 1_000_000),
         }))
         return this._request('/payroll/run', 'POST', {
             payrollList: convertedList,
-            companyWalletAddress,
-            agentAddress,
         })
     }
 
-    async callPaidEndpoint(url, { recipientAddress, amount, purpose, senderAddress, agentAddress }) {
+    async callPaidEndpoint(url, { recipientAddress, amount, purpose, senderAddress }) {
         const payment = await this.payForAccess({
             recipientAddress,
             amount,
             purpose,
-            agentAddress,
         })
         const res = await fetch(url, {
             headers: {
@@ -105,26 +103,19 @@ class FastrPay {
         }
     }
 
-    async enableAgent({ businessWalletAddress, agentAddress, maxAmountPerTx, dailyLimit }) {
+    async enableAgent({ maxAmountPerTx, dailyLimit }) {
         return this._request('/agent/enable', 'POST', {
-            businessWalletAddress,
-            agentAddress,
             maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
             dailyLimit: Math.round(dailyLimit * 1_000_000),
         })
     }
 
-    async revokeAgent({ businessWalletAddress, agentAddress }) {
-        return this._request('/agent/revoke', 'POST', {
-            businessWalletAddress,
-            agentAddress,
-        })
+    async revokeAgent() {
+        return this._request('/agent/revoke', 'POST', {})
     }
 
-    async setAgentPolicy({ businessWalletAddress, agentAddress, maxAmountPerTx, dailyLimit }) {
+    async setAgentPolicy({ maxAmountPerTx, dailyLimit }) {
         return this._request('/agent/policy', 'POST', {
-            businessWalletAddress,
-            agentAddress,
             maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
             dailyLimit: Math.round(dailyLimit * 1_000_000),
         })
