@@ -27,8 +27,8 @@ class FastrPay {
         })
     }
 
-    async getBalance(address) {
-        return this._request(`/wallet/balance/${address}`, 'GET')
+    async getBalance(ownerLabel) {
+        return this._request(`/wallet/balance/${encodeURIComponent(ownerLabel)}`, 'GET')
     }
 
     async createPaymentLink({ payeeWalletAddress, amount, currency, purpose }) {
@@ -119,6 +119,10 @@ class FastrPay {
             maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
             dailyLimit: Math.round(dailyLimit * 1_000_000),
         })
+    }
+
+    async disableMyAccount() {
+        return this._request('/business/disable-self', 'POST', {})
     }
 }
 
