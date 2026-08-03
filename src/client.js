@@ -1,3 +1,34 @@
+/**
+ * client.js
+ *
+ * The FastrPay class — the actual HTTP client and public API surface of
+ * the SDK. Every method here validates its own arguments client-side
+ * (via _requireString/_requirePositiveNumber) before ever sending a
+ * request, so a missing or wrong-typed field surfaces as a clear
+ * FastrPayValidationError immediately instead of an opaque server error
+ * a request-roundtrip later.
+ *
+ * _request() is the single place every HTTP call goes through: it
+ * attaches the API key, enforces a timeout (via AbortController, so a
+ * hung server can't block the caller forever), parses the JSON response,
+ * and — on any non-2xx response — hands the body to buildError() (see
+ * errors.js's ERROR_CODE_MAP) to throw the specific typed error the
+ * backend's `code` maps to, rather than a generic Error.
+ *
+ * One method per backend route: pay(), getBalance(), createPaymentLink(),
+ * fulfillPaymentLink(), withdraw(), createWallet(), getWallets(),
+ * payForAccess(), runPayroll(), enableAgent(), revokeAgent(),
+ * setAgentPolicy(), and disableMyAccount() for self-service key
+ * compromise response. callPaidEndpoint() is a convenience wrapper for
+ * the paywall flow — it pays via payForAccess() and then calls the
+ * protected endpoint with the resulting payment proof in headers,
+ * returning both the endpoint's response and a payment receipt together.
+ *
+ * Amounts are accepted from callers in whole token units (e.g. 10 for
+ * 10 USDC) and converted to the contract's 6-decimal raw units
+ * internally, so SDK consumers never have to think about decimals.
+*/
+
 const {
     FastrPayError,
     FastrPayNetworkError,
