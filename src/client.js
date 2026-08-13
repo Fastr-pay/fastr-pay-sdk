@@ -57,7 +57,7 @@ function buildError(data, status) {
 }
 
 class FastrPay {
-    constructor({ apiKey, baseUrl = 'http://localhost:3000', timeoutMs = 60000, txTimeoutMs = 60000 }) {
+    constructor({ apiKey, baseUrl = 'http://localhost:3000', timeoutMs = 120000, txTimeoutMs = 120000 }) {
         if (!apiKey || typeof apiKey !== 'string') {
             throw new FastrPayValidationError('apiKey is required and must be a string')
         }
