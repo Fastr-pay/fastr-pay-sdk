@@ -91,6 +91,13 @@ class DuplicatePaymentError extends FastrPayError {
     }
 }
 
+class InvalidSessionError extends FastrPayError {
+    constructor(message, details) {
+        super(message, { code: 'INVALID_SESSION', status: 401, details })
+        this.name = 'InvalidSessionError'
+    }
+}
+
 module.exports = {
     FastrPayError,
     FastrPayNetworkError,
@@ -100,4 +107,5 @@ module.exports = {
     WalletNotAuthorizedError,
     InsufficientAllowanceError,
     DuplicatePaymentError,
+    InvalidSessionError,
 }

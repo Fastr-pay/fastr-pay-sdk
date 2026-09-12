@@ -38,6 +38,7 @@ const {
     WalletNotAuthorizedError,
     InsufficientAllowanceError,
     DuplicatePaymentError,
+    InvalidSessionError,
 } = require('./errors')
 
 const ERROR_CODE_MAP = {
@@ -48,6 +49,9 @@ const ERROR_CODE_MAP = {
     WALLET_NOT_FOUND: FastrPayError,
     DUPLICATE_PAYMENT: DuplicatePaymentError,
     INSUFFICIENT_ALLOWANCE: InsufficientAllowanceError,
+    MISSING_SESSION: InvalidSessionError,
+    INVALID_SESSION: InvalidSessionError,
+    LOGIN_FAILED: FastrPayError,
 }
 
 function buildError(data, status) {
@@ -65,6 +69,7 @@ class FastrPay {
         this.baseUrl = baseUrl
         this.timeoutMs = timeoutMs
         this.txTimeoutMs = txTimeoutMs
+        this._sessionCookie = null
     }
 
     async _request(path, method, body) {
@@ -75,7 +80,11 @@ class FastrPay {
         try {
             res = await fetch(`${this.baseUrl}${path}`, {
                 method,
-                headers: { 'Content-Type': 'application/json', 'x-api-key': this.apiKey },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': this.apiKey,
+                    ...(this._sessionCookie ? { Cookie: this._sessionCookie } : {}),
+                },
                 body: body ? JSON.stringify(body) : undefined,
                 signal: controller.signal,
             })
@@ -86,6 +95,12 @@ class FastrPay {
             throw new FastrPayNetworkError('Could not reach FastrPay server', { path, cause: err.message })
         } finally {
             clearTimeout(timeout)
+        }
+
+        const setCookie = res.headers.get('set-cookie')
+        if (setCookie) {
+            const match = setCookie.match(/session_token=([^;]+)/)
+            if (match) this._sessionCookie = `session_token=${match[1]}`
         }
 
         let data
@@ -227,6 +242,16 @@ class FastrPay {
         this._requirePositiveNumber(maxAmountPerTx, 'maxAmountPerTx')
         this._requirePositiveNumber(dailyLimit, 'dailyLimit')
         return this._request('/agent/policy', 'POST', { maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000), dailyLimit: Math.round(dailyLimit * 1_000_000) })
+    }
+
+    async login() {
+        return this._request('/auth/login', 'POST', {})
+    }
+
+    async logout() {
+        const data = await this._request('/auth/logout', 'POST', {})
+        this._sessionCookie = null
+        return data
     }
 
     async disableMyAccount() {
