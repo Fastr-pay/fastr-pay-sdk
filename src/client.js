@@ -234,6 +234,14 @@ class FastrPay {
         return this._request('/agent/enable', 'POST', { maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000), dailyLimit: Math.round(dailyLimit * 1_000_000) })
     }
 
+    async fundAgent({ token, amount }) {
+        this._requireString(token, 'token')
+        this._requirePositiveNumber(amount, 'amount')
+        const decimals = token === 'USDB' ? 18 : 6
+        const raw = BigInt(Math.round(amount)) * (10n ** BigInt(decimals))
+        return this._request('/agent/fund', 'POST', { token, amount: raw.toString() })
+    }
+
     async revokeAgent() {
         return this._request('/agent/revoke', 'POST', {})
     }
