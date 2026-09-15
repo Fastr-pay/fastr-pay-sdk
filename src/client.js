@@ -182,18 +182,25 @@ class FastrPay {
         return this._request('/agent-pay', 'POST', { recipientAddress, amount: Math.round(amount * 1_000_000), purpose })
     }
 
-    async runPayroll(payrollList) {
-        if (!Array.isArray(payrollList) || payrollList.length === 0) {
-            throw new FastrPayValidationError('payrollList must be a non-empty array')
+    async runPayroll(employeeIds) {
+        if (employeeIds !== undefined) {
+            if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+                throw new FastrPayValidationError('employeeIds must be a non-empty array of ids')
+            }
+            employeeIds.forEach((id, i) => {
+                this._requireString(id, `employeeIds[${i}]`)
+            })
+            return this._request('/payroll/run', 'POST', { employeeIds })
         }
-        payrollList.forEach((w, i) => {
-            this._requireString(w.name, `payrollList[${i}].name`)
-            this._requireString(w.blindPayReceiverId, `payrollList[${i}].blindPayReceiverId`)
-            this._requireString(w.bankAccountId, `payrollList[${i}].bankAccountId`)
-            this._requirePositiveNumber(w.salary, `payrollList[${i}].salary`)
-        })
-        const convertedList = payrollList.map(w => ({ ...w, salary: Math.round(w.salary * 1_000_000) }))
-        return this._request('/payroll/run', 'POST', { payrollList: convertedList })
+        return this._request('/payroll/run', 'POST', {})
+    }
+
+    async addEmployee({ name, blindPayReceiverId, bankAccountId, salary }) {
+        this._requireString(name, 'name')
+        this._requireString(blindPayReceiverId, 'blindPayReceiverId')
+        this._requireString(bankAccountId, 'bankAccountId')
+        this._requirePositiveNumber(salary, 'salary')
+        return this._request('/employee/add', 'POST', { name, blindPayReceiverId, bankAccountId, salary: Math.round(salary * 1_000_000) })
     }
 
     async callPaidEndpoint(url, { recipientAddress, amount, purpose, senderAddress }) {
