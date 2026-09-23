@@ -269,6 +269,28 @@ class FastrPay {
         return data
     }
 
+    async approveYield({ amount }) {
+        this._requirePositiveNumber(amount, 'amount')
+        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        return this._request('/yield/approve', 'POST', { amount: raw.toString() })
+    }
+
+    async deployYield({ amount }) {
+        this._requirePositiveNumber(amount, 'amount')
+        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        return this._request('/yield/deploy', 'POST', { amount: raw.toString() })
+    }
+
+    async undeployYield({ amount }) {
+        this._requirePositiveNumber(amount, 'amount')
+        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        return this._request('/yield/undeploy', 'POST', { amount: raw.toString() })
+    }
+
+    async getYieldStatus() {
+        return this._request('/yield/status', 'GET')
+    }
+
     async disableMyAccount() {
         return this._request('/business/disable-self', 'POST', {})
     }
