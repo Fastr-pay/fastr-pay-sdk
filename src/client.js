@@ -269,6 +269,12 @@ class FastrPay {
         return data
     }
 
+    async logoutAll() {
+        const data = await this._request('/auth/logout-all', 'POST', {})
+        this._sessionCookie = null
+        return data
+    }
+
     async approveYield({ amount }) {
         this._requirePositiveNumber(amount, 'amount')
         const raw = BigInt(Math.round(amount)) * (10n ** 6n)
