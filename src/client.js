@@ -151,6 +151,13 @@ class FastrPay {
         return this._request('/payment-link/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
     }
 
+    async createPaywall({ payeeWalletAddress, amount, currency, purpose }) {
+        this._requireString(payeeWalletAddress, 'payeeWalletAddress')
+        this._requirePositiveNumber(amount, 'amount')
+        this._requireString(currency, 'currency')
+        return this._request('/paywall/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
+    }
+
     async fulfillPaymentLink(linkId, { orderId, paymentId, signature, method }) {
         this._requireString(linkId, 'linkId')
         this._requireString(orderId, 'orderId')
