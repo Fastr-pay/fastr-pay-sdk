@@ -158,6 +158,11 @@ class FastrPay {
         return this._request('/paywall/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
     }
 
+    async deletePaywall(paywallId) {
+        this._requireString(paywallId, 'paywallId')
+        return this._request(`/paywall/${paywallId}/delete`, 'POST', {})
+    }
+
     async collectPaywall(paywallId, { orderId, paymentId, signature, method, amount }) {
         this._requireString(paywallId, 'paywallId')
         this._requireString(orderId, 'orderId')
@@ -223,6 +228,15 @@ class FastrPay {
         this._requireString(bankAccountId, 'bankAccountId')
         this._requirePositiveNumber(salary, 'salary')
         return this._request('/employee/add', 'POST', { name, blindPayReceiverId, bankAccountId, salary: Math.round(salary * 1_000_000) })
+    }
+
+    async removeEmployee(employeeId) {
+        this._requireString(employeeId, 'employeeId')
+        return this._request('/employee/remove', 'POST', { employeeId })
+    }
+
+    async getEmployeeStatus() {
+        return this._request('/employee/status', 'GET')
     }
 
     async callPaidEndpoint(url, { recipientAddress, amount, purpose, senderAddress }) {
