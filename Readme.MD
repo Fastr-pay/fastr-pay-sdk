@@ -119,6 +119,18 @@ await fastr.fulfillPaymentLink(link.linkId, { orderId, paymentId, signature, met
 Generates a shareable link with a fixed amount/currency/destination;
 fulfilling it runs the same settlement flow as `pay()`.
 
+### Reusable paywalls
+
+```javascript
+const wall = await fastr.createPaywall({ payeeWalletAddress, amount, currency, purpose })
+await fastr.collectPaywall(wall.paywallId, { orderId, paymentId, signature, method })
+```
+
+The SDK methods remain authenticated for server-side callers and continue
+sending the business API key. Customer-facing Razorpay checkout is handled
+by the hosted paywall page, which creates an order and submits Razorpay's
+payment proof without exposing the business API key in the browser.
+
 ### Withdraw (off-ramp to bank)
 
 ```javascript
