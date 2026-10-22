@@ -142,19 +142,33 @@ Converts on-chain balance held in your treasury into a real bank payout.
 ### Agent payments & payroll
 
 ```javascript
-await fastr.enableAgent({ maxAmountPerTx, dailyLimit })
-await fastr.setAgentPolicy({ maxAmountPerTx, dailyLimit })
-await fastr.revokeAgent()
+await fastr.enableAgent({ maxAmountPerTx: 2000, dailyLimit: 10000 })
 
-await fastr.runPayroll([
-    { name: 'Jane Doe', blindPayReceiverId, bankAccountId, salary: 1200 },
-])
+const added = await fastr.addEmployee({
+    name: 'Jane Doe',
+    email: 'jane@example.test',
+    salary: 1200,
+    bankAccount: {
+        countryCode: 'US',
+        currency: 'USD',
+        paymentRail: 'ACH',
+        bankName: 'Demo Bank',
+        accountLast4: '6789',
+        details: {
+            accountHolderName: 'Jane Doe',
+            accountNumber: '000123456789',
+            routingNumber: '011000015',
+        },
+    },
+})
+
+// Employee bank details are sent to the backend over HTTPS and encrypted
+// before storage. Keep API keys server-side and never log these details.
+// Bank-account verification is not implemented yet, so payroll cannot
+// be run for this newly added account until it is verified.
 ```
 
-`runPayroll()` settles an on-chain payment per worker (capped by your
-agent's policy limits) and off-ramps it to their bank account.
-Amounts are in whole token units (e.g. `1200` for 1200 USDC) — the SDK
-handles decimal conversion internally.
+`salary` is expressed in USDC units (for example, `1200` means 1200 USDC); the SDK sends the decimal amount as-is and the backend converts it to six-decimal units. The mock bank adapter simulates USD settlement only. It does not transfer real USDC or fiat, and a newly added bank account remains pending until a verification flow is implemented.
 
 ### Pay-per-request (paywall)
 

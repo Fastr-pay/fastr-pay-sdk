@@ -222,12 +222,58 @@ class FastrPay {
         return this._request('/payroll/run', 'POST', {})
     }
 
-    async addEmployee({ name, blindPayReceiverId, bankAccountId, salary }) {
+    async addEmployee({ name, email, salary, bankAccount }) {
         this._requireString(name, 'name')
-        this._requireString(blindPayReceiverId, 'blindPayReceiverId')
-        this._requireString(bankAccountId, 'bankAccountId')
+        this._requireString(email, 'email')
         this._requirePositiveNumber(salary, 'salary')
-        return this._request('/employee/add', 'POST', { name, blindPayReceiverId, bankAccountId, salary: Math.round(salary * 1_000_000) })
+        if (!/^\d+(?:\.\d{1,6})?$/.test(String(salary))) {
+            throw new FastrPayValidationError('salary must have no more than 6 decimal places')
+        }
+
+        if (!bankAccount || typeof bankAccount !== 'object' || Array.isArray(bankAccount)) {
+            throw new FastrPayValidationError('bankAccount must be an object')
+        }
+
+        const { countryCode, currency, paymentRail, bankName, accountLast4, details } = bankAccount
+        this._requireString(countryCode, 'bankAccount.countryCode')
+        this._requireString(currency, 'bankAccount.currency')
+        this._requireString(paymentRail, 'bankAccount.paymentRail')
+        this._requireString(accountLast4, 'bankAccount.accountLast4')
+
+        if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+            throw new FastrPayValidationError('email must be a valid email address')
+        }
+        if (!/^[A-Za-z]{2}$/.test(countryCode.trim())) {
+            throw new FastrPayValidationError('bankAccount.countryCode must be a 2-letter country code')
+        }
+        if (!/^[A-Za-z]{3}$/.test(currency.trim())) {
+            throw new FastrPayValidationError('bankAccount.currency must be a 3-letter currency code')
+        }
+        if (paymentRail.trim().length > 64) {
+            throw new FastrPayValidationError('bankAccount.paymentRail must be 64 characters or fewer')
+        }
+        if (!/^[A-Za-z0-9]{4}$/.test(accountLast4.trim())) {
+            throw new FastrPayValidationError('bankAccount.accountLast4 must contain the last 4 account characters')
+        }
+        if (!details || typeof details !== 'object' || Array.isArray(details)) {
+            throw new FastrPayValidationError('bankAccount.details must be an object')
+        }
+
+        return this._request('/employee/add', 'POST', {
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            salary,
+            bankAccount: {
+                countryCode: countryCode.trim().toUpperCase(),
+                currency: currency.trim().toUpperCase(),
+                paymentRail: paymentRail.trim(),
+                ...(typeof bankName === 'string' && bankName.trim()
+                    ? { bankName: bankName.trim() }
+                    : {}),
+                accountLast4: accountLast4.trim(),
+                details,
+            },
+        })
     }
 
     async removeEmployee(employeeId) {

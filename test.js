@@ -69,19 +69,25 @@ async function testCallPaidEndpoint() {
     console.log('Paid endpoint result:', result)
 }
 
-async function testPayroll() {
-    const result = await fastr.runPayroll([
-        {
-            name: 'Dante',
-            blindPayReceiverId: 're_3Wq8t3k8Vo9t',
-            bankAccountId: 'ba_QCbu48wzSEtm',
-            salary: 12,
+async function testAddEmployee() {
+    const result = await fastr.addEmployee({
+        name: 'Demo Employee',
+        email: 'employee@example.test',
+        salary: 1200,
+        bankAccount: {
+            countryCode: 'US',
+            currency: 'USD',
+            paymentRail: 'ACH',
+            bankName: 'Demo Bank',
+            accountLast4: '6789',
+            details: {
+                accountHolderName: 'Demo Employee',
+                accountNumber: '000123456789',
+                routingNumber: '011000015',
+            },
         },
-    ], '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
-    console.log('Payroll result:', result)
-
-    const balance = await fastr.getBalance('0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
-    console.log('Balances after payroll:', balance.balances)
+    })
+    console.log('Added demo employee:', result.employee.id)
 }
 
-testPayroll().catch(console.error)
+testAddEmployee().catch(console.error)
