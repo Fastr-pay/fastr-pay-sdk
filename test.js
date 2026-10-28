@@ -1,8 +1,11 @@
 const FastrPay = require('./index')
 
+const apiKey = process.env.FASTR_PAY_API_KEY
+if (!apiKey) throw new Error('Set FASTR_PAY_API_KEY before running this manual test.')
+
 const fastr = new FastrPay({
-    apiKey: 'fpk_341b8145dadfa467a172eb8ad3f7ca536f87ebe9b3c0e87a',
-    baseUrl: 'http://localhost:3000',
+    apiKey,
+    baseUrl: process.env.FASTR_PAY_BASE_URL || 'http://localhost:3000',
 })
 
 async function run() {
@@ -34,6 +37,16 @@ async function testCreatePaymentLink() {
     console.log('Payment link created:', link)
 }
 
+async function testCreateCardPlan() {
+    const plan = await fastr.createCardPlan({
+        name: 'Monthly demo access',
+        amount: 10,
+        currency: 'USD',
+        period: 'monthly',
+    })
+    console.log('Card plan created:', plan)
+}
+
 async function testFulfillPaymentLink(linkId, signature) {
     const result = await fastr.fulfillPaymentLink(linkId, {
         orderId: 'mock_order_sdklinktest002',
@@ -47,16 +60,6 @@ async function testFulfillPaymentLink(linkId, signature) {
 async function testBalance() {
     const result = await fastr.getBalance('0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4')
     console.log('Balance result:', result)
-}
-
-async function testWithdraw() {
-    const result = await fastr.withdraw({
-        receiverId: 're_3Wq8t3k8Vo9t',
-        bankAccountId: 'ba_QCbu48wzSEtm',
-        amount: 1000, // 1000 = $10
-        senderWalletAddress: '0xeca0dd4d9fbaba0f54ce4142965724643d05e262',
-    })
-    console.log('Withdraw result:', result)
 }
 
 async function testCallPaidEndpoint() {
@@ -83,7 +86,7 @@ async function testAddEmployee() {
             details: {
                 accountHolderName: 'Demo Employee',
                 accountNumber: '000123456789',
-                routingNumber: '011000015',
+                bankCode: '011000015',
             },
         },
     })

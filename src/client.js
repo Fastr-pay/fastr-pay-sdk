@@ -16,7 +16,7 @@
  * backend's `code` maps to, rather than a generic Error.
  *
  * One method per backend route: pay(), getBalance(), createPaymentLink(),
- * fulfillPaymentLink(), withdraw(), createWallet(), getWallets(),
+ * fulfillPaymentLink(), createWallet(), getWallets(),
  * payForAccess(), runPayroll(), enableAgent(), revokeAgent(),
  * setAgentPolicy(), and disableMyAccount() for self-service key
  * compromise response. callPaidEndpoint() is a convenience wrapper for
@@ -29,6 +29,7 @@
  * internally, so SDK consumers never have to think about decimals.
 */
 
+const crypto = require('crypto')
 const {
     FastrPayError,
     FastrPayNetworkError,
@@ -72,7 +73,7 @@ class FastrPay {
         this._sessionCookie = null
     }
 
-    async _request(path, method, body) {
+    async _request(path, method, body, extraHeaders = {}) {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 
@@ -84,6 +85,7 @@ class FastrPay {
                     'Content-Type': 'application/json',
                     'x-api-key': this.apiKey,
                     ...(this._sessionCookie ? { Cookie: this._sessionCookie } : {}),
+                    ...extraHeaders,
                 },
                 body: body ? JSON.stringify(body) : undefined,
                 signal: controller.signal,
@@ -151,6 +153,35 @@ class FastrPay {
         return this._request('/payment-link/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
     }
 
+    async createCardPlan({
+        name,
+        amount,
+        currency,
+        period,
+        interval = 1,
+        idempotencyKey = crypto.randomUUID(),
+    }) {
+        this._requireString(name, 'name')
+        this._requirePositiveNumber(amount, 'amount')
+        this._requireString(currency, 'currency')
+        if (!['daily', 'weekly', 'monthly', 'quarterly', 'yearly'].includes(period)) {
+            throw new FastrPayValidationError('period must be daily, weekly, monthly, quarterly, or yearly')
+        }
+        if (!Number.isSafeInteger(interval) || interval < 1 || (period === 'daily' && interval < 7)) {
+            throw new FastrPayValidationError('interval must be a positive integer; daily plans require at least 7')
+        }
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+            throw new FastrPayValidationError('idempotencyKey must be a UUID')
+        }
+
+        return this._request(
+            '/cards/plans',
+            'POST',
+            { name: name.trim(), amount, currency: currency.trim().toUpperCase(), period, interval },
+            { 'Idempotency-Key': idempotencyKey },
+        )
+    }
+
     async createPaywall({ payeeWalletAddress, amount, currency, purpose }) {
         this._requireString(payeeWalletAddress, 'payeeWalletAddress')
         this._requirePositiveNumber(amount, 'amount')
@@ -187,13 +218,6 @@ class FastrPay {
         return this._request(`/pay/${linkId}`, 'POST', { orderId, paymentId, signature, method })
     }
 
-    async withdraw({ receiverId, bankAccountId, amount }) {
-        this._requireString(receiverId, 'receiverId')
-        this._requireString(bankAccountId, 'bankAccountId')
-        this._requirePositiveNumber(amount, 'amount')
-        return this._request('/withdraw', 'POST', { receiverId, bankAccountId, amount })
-    }
-
     async createWallet({ ownerLabel }) {
         this._requireString(ownerLabel, 'ownerLabel')
         return this._request('/wallet/create', 'POST', { ownerLabel })
@@ -209,17 +233,25 @@ class FastrPay {
         return this._request('/agent-pay', 'POST', { recipientAddress, amount: Math.round(amount * 1_000_000), purpose })
     }
 
-    async runPayroll(employeeIds) {
+    async runPayroll(employeeIds, { idempotencyKey = crypto.randomUUID() } = {}) {
         if (employeeIds !== undefined) {
-            if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
-                throw new FastrPayValidationError('employeeIds must be a non-empty array of ids')
+            if (!Array.isArray(employeeIds) || employeeIds.length === 0 || employeeIds.length > 100) {
+                throw new FastrPayValidationError('employeeIds must be a non-empty array of at most 100 ids')
             }
             employeeIds.forEach((id, i) => {
                 this._requireString(id, `employeeIds[${i}]`)
             })
-            return this._request('/payroll/run', 'POST', { employeeIds })
         }
-        return this._request('/payroll/run', 'POST', {})
+        this._requireString(idempotencyKey, 'idempotencyKey')
+        if (idempotencyKey.length > 256 || /[\r\n\u0000-\u001f]/.test(idempotencyKey)) {
+            throw new FastrPayValidationError('idempotencyKey must be at most 256 characters and contain no control characters')
+        }
+        return this._request(
+            '/payroll/run',
+            'POST',
+            employeeIds === undefined ? {} : { employeeIds },
+            { 'Idempotency-Key': idempotencyKey },
+        )
     }
 
     async addEmployee({ name, email, salary, bankAccount }) {
@@ -323,11 +355,17 @@ class FastrPay {
         return this._request('/agent/enable', 'POST', { maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000), dailyLimit: Math.round(dailyLimit * 1_000_000) })
     }
 
-    async fundAgent({ token, amount }) {
-        this._requireString(token, 'token')
+    async fundAgent({ token = 'USDC', amount }) {
+        if (token !== 'USDC') {
+            throw new FastrPayValidationError('fundAgent supports USDC only')
+        }
         this._requirePositiveNumber(amount, 'amount')
-        const decimals = token === 'USDB' ? 18 : 6
-        const raw = BigInt(Math.round(amount)) * (10n ** BigInt(decimals))
+        const normalized = String(amount)
+        if (!/^\d+(?:\.\d{1,6})?$/.test(normalized)) {
+            throw new FastrPayValidationError('amount must have at most six decimal places')
+        }
+        const [whole, fraction = ''] = normalized.split('.')
+        const raw = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'))
         return this._request('/agent/fund', 'POST', { token, amount: raw.toString() })
     }
 
