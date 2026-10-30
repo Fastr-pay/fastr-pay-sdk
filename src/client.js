@@ -27,7 +27,7 @@
  * Amounts are accepted from callers in whole token units (e.g. 10 for
  * 10 USDC) and converted to the contract's 6-decimal raw units
  * internally, so SDK consumers never have to think about decimals.
-*/
+ */
 
 const crypto = require('crypto')
 const {
@@ -62,7 +62,12 @@ function buildError(data, status) {
 }
 
 class FastrPay {
-    constructor({ apiKey, baseUrl = 'http://localhost:3000', timeoutMs = 120000, txTimeoutMs = 120000 }) {
+    constructor({
+        apiKey,
+        baseUrl = 'http://localhost:3000',
+        timeoutMs = 120000,
+        txTimeoutMs = 120000,
+    }) {
         if (!apiKey || typeof apiKey !== 'string') {
             throw new FastrPayValidationError('apiKey is required and must be a string')
         }
@@ -92,9 +97,14 @@ class FastrPay {
             })
         } catch (err) {
             if (err.name === 'AbortError') {
-                throw new FastrPayNetworkError(`Request timed out after ${this.timeoutMs}ms`, { path })
+                throw new FastrPayNetworkError(`Request timed out after ${this.timeoutMs}ms`, {
+                    path,
+                })
             }
-            throw new FastrPayNetworkError('Could not reach FastrPay server', { path, cause: err.message })
+            throw new FastrPayNetworkError('Could not reach FastrPay server', {
+                path,
+                cause: err.message,
+            })
         } finally {
             clearTimeout(timeout)
         }
@@ -109,7 +119,10 @@ class FastrPay {
         try {
             data = await res.json()
         } catch {
-            throw new FastrPayError('Server returned a non-JSON response', { status: res.status, code: 'BAD_RESPONSE' })
+            throw new FastrPayError('Server returned a non-JSON response', {
+                status: res.status,
+                code: 'BAD_RESPONSE',
+            })
         }
 
         if (!res.ok) {
@@ -130,7 +143,16 @@ class FastrPay {
         }
     }
 
-    async pay({ payeeWalletAddress, fiatAmount, fiatCurrency, purpose, orderId, paymentId, signature, method }) {
+    async pay({
+        payeeWalletAddress,
+        fiatAmount,
+        fiatCurrency,
+        purpose,
+        orderId,
+        paymentId,
+        signature,
+        method,
+    }) {
         this._requireString(payeeWalletAddress, 'payeeWalletAddress')
         this._requirePositiveNumber(fiatAmount, 'fiatAmount')
         this._requireString(fiatCurrency, 'fiatCurrency')
@@ -138,7 +160,16 @@ class FastrPay {
         this._requireString(paymentId, 'paymentId')
         this._requireString(signature, 'signature')
         this._requireString(method, 'method')
-        return this._request('/payin', 'POST', { payeeWalletAddress, fiatAmount, fiatCurrency, purpose, orderId, paymentId, signature, method })
+        return this._request('/payin', 'POST', {
+            payeeWalletAddress,
+            fiatAmount,
+            fiatCurrency,
+            purpose,
+            orderId,
+            paymentId,
+            signature,
+            method,
+        })
     }
 
     async getBalance(ownerLabel) {
@@ -150,7 +181,12 @@ class FastrPay {
         this._requireString(payeeWalletAddress, 'payeeWalletAddress')
         this._requirePositiveNumber(amount, 'amount')
         this._requireString(currency, 'currency')
-        return this._request('/payment-link/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
+        return this._request('/payment-link/create', 'POST', {
+            payeeWalletAddress,
+            amount,
+            currency,
+            purpose,
+        })
     }
 
     async createCardPlan({
@@ -165,19 +201,37 @@ class FastrPay {
         this._requirePositiveNumber(amount, 'amount')
         this._requireString(currency, 'currency')
         if (!['daily', 'weekly', 'monthly', 'quarterly', 'yearly'].includes(period)) {
-            throw new FastrPayValidationError('period must be daily, weekly, monthly, quarterly, or yearly')
+            throw new FastrPayValidationError(
+                'period must be daily, weekly, monthly, quarterly, or yearly',
+            )
         }
-        if (!Number.isSafeInteger(interval) || interval < 1 || (period === 'daily' && interval < 7)) {
-            throw new FastrPayValidationError('interval must be a positive integer; daily plans require at least 7')
+        if (
+            !Number.isSafeInteger(interval) ||
+            interval < 1 ||
+            (period === 'daily' && interval < 7)
+        ) {
+            throw new FastrPayValidationError(
+                'interval must be a positive integer; daily plans require at least 7',
+            )
         }
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+        if (
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                idempotencyKey,
+            )
+        ) {
             throw new FastrPayValidationError('idempotencyKey must be a UUID')
         }
 
         return this._request(
             '/cards/plans',
             'POST',
-            { name: name.trim(), amount, currency: currency.trim().toUpperCase(), period, interval },
+            {
+                name: name.trim(),
+                amount,
+                currency: currency.trim().toUpperCase(),
+                period,
+                interval,
+            },
             { 'Idempotency-Key': idempotencyKey },
         )
     }
@@ -186,7 +240,12 @@ class FastrPay {
         this._requireString(payeeWalletAddress, 'payeeWalletAddress')
         this._requirePositiveNumber(amount, 'amount')
         this._requireString(currency, 'currency')
-        return this._request('/paywall/create', 'POST', { payeeWalletAddress, amount, currency, purpose })
+        return this._request('/paywall/create', 'POST', {
+            payeeWalletAddress,
+            amount,
+            currency,
+            purpose,
+        })
     }
 
     async deletePaywall(paywallId) {
@@ -230,13 +289,23 @@ class FastrPay {
     async payForAccess({ recipientAddress, amount, purpose }) {
         this._requireString(recipientAddress, 'recipientAddress')
         this._requirePositiveNumber(amount, 'amount')
-        return this._request('/agent-pay', 'POST', { recipientAddress, amount: Math.round(amount * 1_000_000), purpose })
+        return this._request('/agent-pay', 'POST', {
+            recipientAddress,
+            amount: Math.round(amount * 1_000_000),
+            purpose,
+        })
     }
 
     async runPayroll(employeeIds, { idempotencyKey = crypto.randomUUID() } = {}) {
         if (employeeIds !== undefined) {
-            if (!Array.isArray(employeeIds) || employeeIds.length === 0 || employeeIds.length > 100) {
-                throw new FastrPayValidationError('employeeIds must be a non-empty array of at most 100 ids')
+            if (
+                !Array.isArray(employeeIds) ||
+                employeeIds.length === 0 ||
+                employeeIds.length > 100
+            ) {
+                throw new FastrPayValidationError(
+                    'employeeIds must be a non-empty array of at most 100 ids',
+                )
             }
             employeeIds.forEach((id, i) => {
                 this._requireString(id, `employeeIds[${i}]`)
@@ -244,7 +313,9 @@ class FastrPay {
         }
         this._requireString(idempotencyKey, 'idempotencyKey')
         if (idempotencyKey.length > 256 || /[\r\n\u0000-\u001f]/.test(idempotencyKey)) {
-            throw new FastrPayValidationError('idempotencyKey must be at most 256 characters and contain no control characters')
+            throw new FastrPayValidationError(
+                'idempotencyKey must be at most 256 characters and contain no control characters',
+            )
         }
         return this._request(
             '/payroll/run',
@@ -276,16 +347,24 @@ class FastrPay {
             throw new FastrPayValidationError('email must be a valid email address')
         }
         if (!/^[A-Za-z]{2}$/.test(countryCode.trim())) {
-            throw new FastrPayValidationError('bankAccount.countryCode must be a 2-letter country code')
+            throw new FastrPayValidationError(
+                'bankAccount.countryCode must be a 2-letter country code',
+            )
         }
         if (!/^[A-Za-z]{3}$/.test(currency.trim())) {
-            throw new FastrPayValidationError('bankAccount.currency must be a 3-letter currency code')
+            throw new FastrPayValidationError(
+                'bankAccount.currency must be a 3-letter currency code',
+            )
         }
         if (paymentRail.trim().length > 64) {
-            throw new FastrPayValidationError('bankAccount.paymentRail must be 64 characters or fewer')
+            throw new FastrPayValidationError(
+                'bankAccount.paymentRail must be 64 characters or fewer',
+            )
         }
         if (!/^[A-Za-z0-9]{4}$/.test(accountLast4.trim())) {
-            throw new FastrPayValidationError('bankAccount.accountLast4 must contain the last 4 account characters')
+            throw new FastrPayValidationError(
+                'bankAccount.accountLast4 must contain the last 4 account characters',
+            )
         }
         if (!details || typeof details !== 'object' || Array.isArray(details)) {
             throw new FastrPayValidationError('bankAccount.details must be an object')
@@ -326,11 +405,18 @@ class FastrPay {
         let res
         try {
             res = await fetch(url, {
-                headers: { 'x-api-key': this.apiKey, 'X-Payment-Id': payment.paymentId, 'X-Payer-Address': senderAddress },
+                headers: {
+                    'x-api-key': this.apiKey,
+                    'X-Payment-Id': payment.paymentId,
+                    'X-Payer-Address': senderAddress,
+                },
                 signal: controller.signal,
             })
         } catch (err) {
-            throw new FastrPayNetworkError('Could not reach the paid endpoint', { url, cause: err.message })
+            throw new FastrPayNetworkError('Could not reach the paid endpoint', {
+                url,
+                cause: err.message,
+            })
         } finally {
             clearTimeout(timeout)
         }
@@ -339,20 +425,33 @@ class FastrPay {
         try {
             result = await res.json()
         } catch {
-            throw new FastrPayError('Paid endpoint returned a non-JSON response', { status: res.status })
+            throw new FastrPayError('Paid endpoint returned a non-JSON response', {
+                status: res.status,
+            })
         }
 
         if (!res.ok) {
             throw buildError(result, res.status)
         }
 
-        return { ...result, paymentReceipt: { paymentId: payment.paymentId, txHash: payment.txHash, amountPaid: amount, purpose } }
+        return {
+            ...result,
+            paymentReceipt: {
+                paymentId: payment.paymentId,
+                txHash: payment.txHash,
+                amountPaid: amount,
+                purpose,
+            },
+        }
     }
 
     async enableAgent({ maxAmountPerTx, dailyLimit }) {
         this._requirePositiveNumber(maxAmountPerTx, 'maxAmountPerTx')
         this._requirePositiveNumber(dailyLimit, 'dailyLimit')
-        return this._request('/agent/enable', 'POST', { maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000), dailyLimit: Math.round(dailyLimit * 1_000_000) })
+        return this._request('/agent/enable', 'POST', {
+            maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
+            dailyLimit: Math.round(dailyLimit * 1_000_000),
+        })
     }
 
     async fundAgent({ token = 'USDC', amount }) {
@@ -376,7 +475,10 @@ class FastrPay {
     async setAgentPolicy({ maxAmountPerTx, dailyLimit }) {
         this._requirePositiveNumber(maxAmountPerTx, 'maxAmountPerTx')
         this._requirePositiveNumber(dailyLimit, 'dailyLimit')
-        return this._request('/agent/policy', 'POST', { maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000), dailyLimit: Math.round(dailyLimit * 1_000_000) })
+        return this._request('/agent/policy', 'POST', {
+            maxAmountPerTx: Math.round(maxAmountPerTx * 1_000_000),
+            dailyLimit: Math.round(dailyLimit * 1_000_000),
+        })
     }
 
     async login() {
@@ -397,19 +499,19 @@ class FastrPay {
 
     async approveYield({ amount }) {
         this._requirePositiveNumber(amount, 'amount')
-        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        const raw = BigInt(Math.round(amount)) * 10n ** 6n
         return this._request('/yield/approve', 'POST', { amount: raw.toString() })
     }
 
     async deployYield({ amount }) {
         this._requirePositiveNumber(amount, 'amount')
-        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        const raw = BigInt(Math.round(amount)) * 10n ** 6n
         return this._request('/yield/deploy', 'POST', { amount: raw.toString() })
     }
 
     async undeployYield({ amount }) {
         this._requirePositiveNumber(amount, 'amount')
-        const raw = BigInt(Math.round(amount)) * (10n ** 6n)
+        const raw = BigInt(Math.round(amount)) * 10n ** 6n
         return this._request('/yield/undeploy', 'POST', { amount: raw.toString() })
     }
 

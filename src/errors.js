@@ -30,7 +30,7 @@
  * class here, falling back to the generic FastrPayError for any code it
  * doesn't recognize — so a new backend error code never crashes the SDK,
  * it just surfaces as a less-specific error until a class is added for it.
-*/
+ */
 
 class FastrPayError extends Error {
     constructor(message, { code, status, details } = {}) {
