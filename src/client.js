@@ -180,7 +180,9 @@ class FastrPay {
 
     _beneficiaryPayload(input = {}) {
         const { displayName, currency, bankName, bankDetails } = input
-        this._requireString(displayName, 'displayName')
+        const normalizedDisplayName =
+            typeof displayName === 'string' ? displayName.trim() : displayName
+        this._requireString(normalizedDisplayName, 'displayName')
         this._requireString(currency, 'currency')
         if (!['USD', 'EUR', 'INR'].includes(currency.trim().toUpperCase())) {
             throw new FastrPayValidationError('currency must be USD, EUR, or INR')
@@ -233,7 +235,7 @@ class FastrPay {
         }
 
         return {
-            displayName: displayName.trim(),
+            displayName: normalizedDisplayName,
             currency: normalizedCurrency,
             ...(typeof bankName === 'string' && bankName.trim()
                 ? { bankName: bankName.trim() }
