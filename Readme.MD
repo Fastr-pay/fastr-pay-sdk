@@ -1,7 +1,7 @@
 # fastr-pay-sdk
 
 Node.js client for the Fastr Pay API — stablecoin settlement infrastructure
-for accepting fiat payments, running agent-authorized payments and payroll,
+for creating hosted payment links, running agent-authorized payments and payroll,
 and off-ramping to a bank account.
 
 ---
@@ -24,16 +24,14 @@ const fastr = new FastrPay({
   baseUrl: "https://api.fastrpay.com", // or your own deployment
 });
 
-const result = await fastr.pay({
+const link = await fastr.createPaymentLink({
   payeeWalletAddress: "0x...",
-  fiatAmount: 100,
-  fiatCurrency: "INR",
+  amount: 100,
+  currency: "INR",
   purpose: "order #1234",
-  orderId: "order_123",
-  paymentId: "pay_456",
-  signature: "...",
-  method: "upi",
 });
+
+console.log(link.paymentUrl); // Share this hosted checkout with your customer.
 ```
 
 ---
@@ -61,20 +59,15 @@ const {
 } = require("fastr-pay-sdk");
 
 try {
-  await fastr.pay({
+  await fastr.createPaymentLink({
     payeeWalletAddress,
-    fiatAmount,
-    fiatCurrency,
-    orderId,
-    paymentId,
-    signature,
-    method,
+    amount: 100,
+    currency: "INR",
+    purpose: "order #1234",
   });
 } catch (err) {
-  if (err instanceof WalletNotAuthorizedError) {
-    // payeeWalletAddress doesn't belong to this business
-  } else if (err instanceof FastrPayValidationError) {
-    // a required field was missing or the wrong type — caught before any request was sent
+  if (err instanceof FastrPayValidationError) {
+    // A required field was missing or had the wrong type.
   } else {
     console.error(err.code, err.status, err.message);
   }
@@ -110,24 +103,7 @@ await fastr.getBalance("company treasury"); // 'company treasury' | 'payroll age
 Every business gets exactly two fixed wallets — `company treasury` and
 `payroll agent` — created once at onboarding and reused from then on.
 
-### Payments in (payin)
-
-```javascript
-await fastr.pay({
-  payeeWalletAddress,
-  fiatAmount,
-  fiatCurrency,
-  purpose,
-  orderId,
-  paymentId,
-  signature,
-  method,
-});
-```
-
-Settles a verified fiat payment as stablecoin to `payeeWalletAddress`.
-
-### Payment links
+### Hosted payment links
 
 ```javascript
 const link = await fastr.createPaymentLink({
@@ -136,16 +112,12 @@ const link = await fastr.createPaymentLink({
   currency,
   purpose,
 });
-await fastr.fulfillPaymentLink(link.linkId, {
-  orderId,
-  paymentId,
-  signature,
-  method,
-});
+
+console.log(link.paymentUrl); // Share this with your customer.
 ```
 
-Generates a shareable link with a fixed amount/currency/destination;
-fulfilling it runs the same settlement flow as `pay()`.
+The hosted checkout handles customer payment and verification. A business creates
+and shares the link; it does not submit the customer's payment proof itself.
 
 ### Reusable paywalls
 
@@ -185,6 +157,39 @@ only. Never bundle the SDK or an API key into a browser app. Browser dashboards
 should use the authenticated dashboard session; customers use the returned
 public plan ID through the hosted Fastr~Pay checkout page. Razorpay webhooks
 confirm recurring payments; a browser checkout callback is not settlement proof.
+
+### Business bank withdrawals (server-side only)
+
+Configure a payout beneficiary from trusted Node.js code using the business API key.
+The dashboard cannot add or change bank details; it receives only masked beneficiary
+metadata. Keep bank details and the API key out of browser bundles and logs.
+
+```javascript
+const beneficiaryResult = await fastr.beneficiaries.create({
+  displayName: "Demo EUR account",
+  currency: "EUR",
+  bankName: "Demo Bank",
+  bankDetails: { iban: "DE89370400440532013000" },
+});
+
+const quote = await fastr.payouts.quote({
+  beneficiaryId: beneficiaryResult.beneficiary.id,
+  usdcAmount: "5.00",
+});
+
+const created = await fastr.payouts.create({
+  quoteToken: quote.quoteToken,
+  idempotencyKey: crypto.randomUUID(),
+});
+
+const payout = await fastr.payouts.get(created.payout.id);
+const history = await fastr.payouts.list();
+```
+
+`fastr.payouts.quote()` returns a 60-second FX quote. `create()` submits USDC from
+the business treasury to the testnet settlement contract. The mock provider
+simulates the fiat leg; no real bank transfer takes place. The adapter can be
+replaced only on the backend.
 
 ### Employee wallets and payroll
 

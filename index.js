@@ -11,7 +11,7 @@
  * implementation lives in src/, split by concern (client.js for the HTTP
  * client and methods, errors.js for the error hierarchy) so each stays
  * focused and independently testable.
-*/
+ */
 
 const FastrPay = require('./src/client')
 const errors = require('./src/errors')

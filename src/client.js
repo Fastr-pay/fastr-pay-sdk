@@ -15,8 +15,8 @@
  * errors.js's ERROR_CODE_MAP) to throw the specific typed error the
  * backend's `code` maps to, rather than a generic Error.
  *
- * One method per backend route: pay(), getBalance(), createPaymentLink(),
- * fulfillPaymentLink(), createWallet(), getWallets(),
+ * One method per business-facing backend route: getBalance(), createPaymentLink(),
+ * createWallet(), getWallets(),
  * payForAccess(), runPayroll(), enableAgent(), revokeAgent(),
  * setAgentPolicy(), and disableMyAccount() for self-service key
  * compromise response. callPaidEndpoint() is a convenience wrapper for
@@ -76,6 +76,17 @@ class FastrPay {
         this.timeoutMs = timeoutMs
         this.txTimeoutMs = txTimeoutMs
         this._sessionCookie = null
+        this.beneficiaries = Object.freeze({
+            create: (input) => this.createBeneficiary(input),
+            update: (id, input) => this.updateBeneficiary(id, input),
+            list: () => this.listBeneficiaries(),
+        })
+        this.payouts = Object.freeze({
+            quote: (input) => this.quotePayout(input),
+            create: (input) => this.createPayout(input),
+            get: (id) => this.getPayout(id),
+            list: () => this.listPayouts(),
+        })
     }
 
     async _request(path, method, body, extraHeaders = {}) {
@@ -143,33 +154,138 @@ class FastrPay {
         }
     }
 
-    async pay({
-        payeeWalletAddress,
-        fiatAmount,
-        fiatCurrency,
-        purpose,
-        orderId,
-        paymentId,
-        signature,
-        method,
-    }) {
-        this._requireString(payeeWalletAddress, 'payeeWalletAddress')
-        this._requirePositiveNumber(fiatAmount, 'fiatAmount')
-        this._requireString(fiatCurrency, 'fiatCurrency')
-        this._requireString(orderId, 'orderId')
-        this._requireString(paymentId, 'paymentId')
-        this._requireString(signature, 'signature')
-        this._requireString(method, 'method')
-        return this._request('/payin', 'POST', {
-            payeeWalletAddress,
-            fiatAmount,
-            fiatCurrency,
-            purpose,
-            orderId,
-            paymentId,
-            signature,
-            method,
-        })
+    _validateUsdcAmount(value, name = 'usdcAmount') {
+        if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(value)) {
+            throw new FastrPayValidationError(
+                `${name} must be a decimal string with up to 6 places`,
+            )
+        }
+        if (BigInt(value.replace('.', '').replace(/^0+(?=\d)/, '')) === 0n) {
+            throw new FastrPayValidationError(`${name} must be greater than zero`)
+        }
+    }
+
+    _validateIdempotencyKey(value) {
+        if (
+            typeof value !== 'string' ||
+            value.length < 16 ||
+            value.length > 200 ||
+            !/^[\x21-\x7e]+$/.test(value)
+        ) {
+            throw new FastrPayValidationError(
+                'idempotencyKey must be 16–200 printable ASCII characters',
+            )
+        }
+    }
+
+    _beneficiaryPayload(input = {}) {
+        const { displayName, currency, bankName, bankDetails } = input
+        const normalizedDisplayName =
+            typeof displayName === 'string' ? displayName.trim() : displayName
+        this._requireString(normalizedDisplayName, 'displayName')
+        this._requireString(currency, 'currency')
+        if (!['USD', 'EUR', 'INR'].includes(currency.trim().toUpperCase())) {
+            throw new FastrPayValidationError('currency must be USD, EUR, or INR')
+        }
+        if (bankName !== undefined && bankName !== null) {
+            this._requireString(bankName, 'bankName')
+        }
+        if (!bankDetails || typeof bankDetails !== 'object' || Array.isArray(bankDetails)) {
+            throw new FastrPayValidationError('bankDetails must be an object')
+        }
+
+        const normalizedCurrency = currency.trim().toUpperCase()
+        const expectedBankKeys = {
+            USD: ['routingNumber', 'accountNumber'],
+            EUR: ['iban'],
+            INR: ['ifsc', 'accountNumber'],
+        }[normalizedCurrency]
+        if (Object.keys(bankDetails).some((key) => !expectedBankKeys.includes(key))) {
+            throw new FastrPayValidationError(
+                `bankDetails contains fields unsupported for ${normalizedCurrency}`,
+            )
+        }
+        if (normalizedCurrency === 'USD') {
+            if (
+                typeof bankDetails.routingNumber !== 'string' ||
+                typeof bankDetails.accountNumber !== 'string' ||
+                !/^\d{9}$/.test(bankDetails.routingNumber.trim()) ||
+                !/^\d{4,17}$/.test(bankDetails.accountNumber.trim())
+            ) {
+                throw new FastrPayValidationError(
+                    'USD bankDetails require a 9-digit routing number and 4–17 digit account number',
+                )
+            }
+        } else if (normalizedCurrency === 'EUR') {
+            if (
+                typeof bankDetails.iban !== 'string' ||
+                !/^[A-Za-z]{2}\d{2}[A-Za-z0-9]{11,30}$/.test(bankDetails.iban.replace(/\s+/g, ''))
+            ) {
+                throw new FastrPayValidationError('EUR bankDetails require a valid IBAN')
+            }
+        } else if (
+            typeof bankDetails.ifsc !== 'string' ||
+            typeof bankDetails.accountNumber !== 'string' ||
+            !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankDetails.ifsc.trim()) ||
+            !/^\d{6,18}$/.test(bankDetails.accountNumber.trim())
+        ) {
+            throw new FastrPayValidationError(
+                'INR bankDetails require an IFSC code and 6–18 digit account number',
+            )
+        }
+
+        return {
+            displayName: normalizedDisplayName,
+            currency: normalizedCurrency,
+            ...(typeof bankName === 'string' && bankName.trim()
+                ? { bankName: bankName.trim() }
+                : {}),
+            bankDetails,
+        }
+    }
+
+    async createBeneficiary(input = {}) {
+        return this._request('/beneficiaries', 'POST', this._beneficiaryPayload(input))
+    }
+
+    async updateBeneficiary(beneficiaryId, input = {}) {
+        this._requireString(beneficiaryId, 'beneficiaryId')
+        return this._request(
+            `/beneficiaries/${encodeURIComponent(beneficiaryId)}`,
+            'PUT',
+            this._beneficiaryPayload(input),
+        )
+    }
+
+    async listBeneficiaries() {
+        return this._request('/beneficiaries', 'GET')
+    }
+
+    async quotePayout({ beneficiaryId, usdcAmount, sourceWallet = 'company treasury' } = {}) {
+        this._requireString(beneficiaryId, 'beneficiaryId')
+        this._validateUsdcAmount(usdcAmount)
+        this._requireString(sourceWallet, 'sourceWallet')
+        return this._request('/payouts/quote', 'POST', { beneficiaryId, usdcAmount, sourceWallet })
+    }
+
+    async createPayout({ quoteToken, idempotencyKey = crypto.randomUUID() } = {}) {
+        this._requireString(quoteToken, 'quoteToken')
+        this._validateIdempotencyKey(idempotencyKey)
+        return this._request(
+            '/payouts',
+            'POST',
+            { quoteToken },
+            { 'Idempotency-Key': idempotencyKey },
+        )
+    }
+
+    async getPayout(payoutId) {
+        this._requireString(payoutId, 'payoutId')
+        return this._request(`/payouts/${encodeURIComponent(payoutId)}`, 'GET')
+    }
+
+    async listPayouts() {
+        return this._request('/payouts', 'GET')
     }
 
     async getBalance(ownerLabel) {
@@ -266,15 +382,6 @@ class FastrPay {
             method,
             amount,
         })
-    }
-
-    async fulfillPaymentLink(linkId, { orderId, paymentId, signature, method }) {
-        this._requireString(linkId, 'linkId')
-        this._requireString(orderId, 'orderId')
-        this._requireString(paymentId, 'paymentId')
-        this._requireString(signature, 'signature')
-        this._requireString(method, 'method')
-        return this._request(`/pay/${linkId}`, 'POST', { orderId, paymentId, signature, method })
     }
 
     async createWallet({ ownerLabel }) {

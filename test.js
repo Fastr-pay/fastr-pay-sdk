@@ -13,20 +13,6 @@ async function run() {
     console.log('Wallet created:', wallet)
 }
 
-async function testPay() {
-    const result = await fastr.pay({
-        payeeWalletAddress: '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4',
-        fiatAmount: 100,
-        fiatCurrency: 'INR',
-        purpose: 'sdk pay test',
-        orderId: 'mock_order_sdktest001',
-        paymentId: 'test_payment_sdk001',
-        signature: '4eb727d4b4a33280e203a090ce555d1056beb6354ab41cdea517564b60f27030',
-        method: 'upi',
-    })
-    console.log('Pay result:', result)
-}
-
 async function testCreatePaymentLink() {
     const link = await fastr.createPaymentLink({
         payeeWalletAddress: '0xda9eb50e1C6cB003a7102B46A8A50741Ce1E67e4',
@@ -45,16 +31,6 @@ async function testCreateCardPlan() {
         period: 'monthly',
     })
     console.log('Card plan created:', plan)
-}
-
-async function testFulfillPaymentLink(linkId, signature) {
-    const result = await fastr.fulfillPaymentLink(linkId, {
-        orderId: 'mock_order_sdklinktest002',
-        paymentId: 'test_payment_sdklink002',
-        signature: signature,
-        method: 'upi',
-    })
-    console.log('Fulfill result:', result)
 }
 
 async function testBalance() {

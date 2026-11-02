@@ -10,4 +10,5 @@ img
 README.md
 coverage.json
 deployments
-.nexts
+.nextspackage-lock.json
+package-lock.json
